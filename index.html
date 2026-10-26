@@ -1,0 +1,522 @@
+<title>Letterhead Studio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+/* Layout: control rail on the left, a lit "light-table" stage on the right where the page sits */
+:root{
+  --bg:#eceef2; --panel:#ffffff; --ink:#191d26; --muted:#5b6372; --line:#d8dce4;
+  --well:#e1e4ea; --dot:#c9ced8; --accent:#2f3c96; --accent-ink:#ffffff; --accent-soft:#e6e9f8;
+  --ok:#1f7a4d;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Figtree", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12151b; --panel:#1a1e26; --ink:#e7e9ee; --muted:#9aa2b1; --line:#2c323d;
+  --well:#0d1015; --dot:#232833; --accent:#9fabff; --accent-ink:#11142a; --accent-soft:#232a4d; --ok:#6fd3a0; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151b; --panel:#1a1e26; --ink:#e7e9ee; --muted:#9aa2b1; --line:#2c323d;
+  --well:#0d1015; --dot:#232833; --accent:#9fabff; --accent-ink:#11142a; --accent-soft:#232a4d; --ok:#6fd3a0; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45}
+.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-block:14px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));
+  border-bottom:1px solid var(--line);background:var(--panel)}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto;min-width:0}
+.brand h1{font-family:var(--f-display);font-weight:700;font-size:21px;letter-spacing:-.01em;margin:0}
+.brand p{margin:0;color:var(--muted);font-size:13px}
+.mark{width:30px;height:30px;border-radius:7px;flex:none;background:linear-gradient(135deg,var(--b1,#b0124f),var(--b2,#1f2f7a))}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+button,.btn{font:inherit;font-weight:600;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button:focus-visible,input:focus-visible,label.drop:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.primary:hover{filter:brightness(1.08);border-color:var(--accent)}
+button[disabled]{opacity:.5;cursor:progress}
+.layout{display:grid;grid-template-columns:360px minmax(0,1fr);min-height:calc(100vh - 70px)}
+aside{background:var(--panel);border-right:1px solid var(--line);padding-block:8px 32px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:20px;overflow:auto;max-height:calc(100vh - 70px);position:sticky;top:0}
+section.step{padding-block:16px;border-bottom:1px solid var(--line);display:grid;gap:12px}
+section.step:last-child{border-bottom:0}
+.step h2{margin:0;font-family:var(--f-display);font-weight:600;font-size:15px;display:flex;align-items:baseline;gap:8px}
+.step h2 .n{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.drops{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label.drop{display:grid;gap:6px;align-content:start;border:1.5px dashed var(--line);border-radius:var(--r);padding:12px;cursor:pointer;min-width:0;background:var(--bg)}
+label.drop:hover,label.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+label.drop input{position:absolute;opacity:0;width:1px;height:1px}
+.drop .t{font-weight:600}
+.drop .f{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drop .thumb{height:46px;display:flex;align-items:center;justify-content:center;background:var(--panel);border-radius:6px;border:1px solid var(--line);overflow:hidden}
+.drop .thumb img,.drop .thumb canvas{max-height:40px;max-width:90%}
+.chip{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:4px;background:var(--accent-soft);color:var(--accent);vertical-align:middle}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.row label{color:var(--muted);font-size:13px}
+.field{display:grid;gap:4px}
+.field .lab{display:flex;justify-content:space-between;font-size:13px;color:var(--muted)}
+.field .lab b{font-family:var(--f-mono);font-weight:500;color:var(--ink);font-size:12px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.lockbox{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:10px 12px;border-radius:var(--r);background:var(--accent-soft);font-size:13px}
+.lockbox.on{background:transparent;border:1px solid var(--ok);color:var(--ok)}
+.lockbox.on button{background:var(--panel);color:var(--ink);border-color:var(--line)}
+.field .lab span{font-size:12px}
+textarea{font:inherit;width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);resize:vertical}
+input[type=text]{font:inherit;width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--bg)}
+.seg button{border:0;border-radius:0;background:transparent;padding:6px 12px;font-weight:500;color:var(--muted)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--panel);color:var(--ink);font-weight:600;box-shadow:inset 0 -2px 0 var(--accent)}
+.swatches{display:flex;gap:8px;flex-wrap:wrap}
+.sw{width:30px;height:30px;border-radius:50%;border:2px solid var(--panel);box-shadow:0 0 0 1px var(--line);padding:0}
+.sw:hover{box-shadow:0 0 0 2px var(--accent)}
+.pair{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
+.color{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:4px 8px 4px 4px;background:var(--bg);min-width:0}
+.color input{width:28px;height:28px;border:0;padding:0;background:none;cursor:pointer;flex:none}
+.color span{font-family:var(--f-mono);font-size:12px;overflow:hidden}
+.color small{display:block;font-family:var(--f-body);color:var(--muted);font-size:11px}
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
+.checks label{display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer}
+.checks input{accent-color:var(--accent);width:16px;height:16px}
+.hint{font-size:12.5px;color:var(--muted);margin:0}
+.savebar{display:flex;align-items:center;gap:8px;justify-content:space-between;padding-block:12px 4px;font-size:12.5px;color:var(--ok)}
+.savebar span::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:7px;vertical-align:1px}
+button.link{border:0;background:none;padding:2px 4px;color:var(--accent);font-size:12.5px;text-decoration:underline}
+.confirm{display:grid;gap:8px;padding:12px;border:1px solid var(--line);border-radius:var(--r);background:var(--bg);font-size:13px;margin-top:6px}
+main.stage{background-color:var(--well);background-image:radial-gradient(var(--dot) 1px,transparent 1px);background-size:18px 18px;
+  padding-block:24px 40px;padding-left:24px;padding-right:max(24px, env(safe-area-inset-right, 0px));display:grid;justify-items:center;align-content:start;gap:14px;min-width:0}
+.stagebar{width:100%;max-width:820px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.stagebar .status{margin-right:auto;font-size:13px;color:var(--muted)}
+.saveas{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);flex:1 1 260px;min-width:0;max-width:380px}
+.saveas input{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 8px;flex:1;min-width:0}
+.paper{width:100%;max-width:820px;position:relative}
+#view{display:block;width:100%;height:auto;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.12),0 12px 32px -8px rgba(20,24,40,.28);touch-action:none}
+.pages{display:flex;gap:8px;overflow-x:auto;max-width:820px;width:100%;padding-bottom:4px}
+.pages button{padding:3px;flex:none;border-radius:6px;background:var(--panel)}
+.pages button[aria-current="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.pages canvas{display:block;width:54px;height:auto}
+.pages span{display:block;font-size:11px;font-family:var(--f-mono);color:var(--muted);text-align:center}
+.busy{position:absolute;inset:0;display:grid;place-items:center;background:rgba(255,255,255,.7);font-weight:600;color:#222}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-weight:500;max-width:calc(100% - 32px);box-shadow:0 8px 24px rgba(0,0,0,.25)}
+@media (max-width:860px){
+  .layout{grid-template-columns:1fr}
+  aside{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line);padding-right:max(16px, env(safe-area-inset-right, 0px))}
+  main.stage{padding-left:max(12px, env(safe-area-inset-left, 0px));padding-right:max(12px, env(safe-area-inset-right, 0px));order:-1}
+}
+@media (max-width:400px){.drops,.checks{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header class="top">
+  <div class="brand"><div class="mark" id="mark"></div><div><h1>Letterhead Studio</h1><p>Drop in a plain report and a logo. Get a branded report back.</p></div></div>
+  <div class="actions">
+    <button id="dlPdf" class="primary">Download branded PDF</button>
+  </div>
+</header>
+
+<div class="layout">
+<aside>
+  <div class="savebar"><span id="saveState">Your logo, colours and settings are saved in this browser</span><button id="resetAll" class="link">Reset</button></div>
+  <div class="confirm" id="confirmReset" hidden><span>Clear the saved logo, colours and settings?</span><div class="row"><button id="resetYes" class="primary">Clear</button><button id="resetNo">Keep</button></div></div>
+  <section class="step">
+    <h2><span class="n">01</span>Files</h2>
+    <div class="drops">
+      <label class="drop" id="dropReport">
+        <input type="file" id="fileReport" accept="application/pdf,image/png,image/jpeg,image/webp">
+        <span class="t">Report</span>
+        <div class="thumb" id="thumbReport"></div>
+        <span class="f" id="nameReport"><span class="chip">Sample</span> CBC report</span>
+      </label>
+      <label class="drop" id="dropLogo">
+        <input type="file" id="fileLogo" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+        <span class="t">Logo</span>
+        <div class="thumb" id="thumbLogo"></div>
+        <span class="f" id="nameLogo"><span class="chip">Sample</span> logo</span>
+      </label>
+    </div>
+    <p class="hint">Report: PDF (all pages) or a scanned image. Logo: PNG with transparency works best; JPG is fine.</p>
+  </section>
+
+  <section class="step">
+    <h2><span class="n">02</span>Brand colours <span class="hint">picked from your logo</span></h2>
+    <div class="swatches" id="swatches"></div>
+    <div class="row"><label>Click a swatch to set</label>
+      <div class="seg" data-seg="pickFor"><button value="primary" aria-pressed="true">Primary</button><button value="secondary" aria-pressed="false">Secondary</button></div></div>
+    <div class="pair">
+      <label class="color"><input type="color" id="c1"><span><small>Primary</small><span id="h1">#000000</span></span></label>
+      <label class="color"><input type="color" id="c2"><span><small>Secondary</small><span id="h2">#000000</span></span></label>
+      <button id="swap" title="Swap primary and secondary" aria-label="Swap colours">⇄</button>
+    </div>
+  </section>
+
+  <section class="step">
+    <h2><span class="n">03</span>Header: logo &amp; address</h2>
+    <div class="lockbox" id="lockBox"><span id="lockText">Arrange the logo and address, then lock the layout.</span><button id="lockBtn" class="primary">Lock layout</button></div>
+    <div class="field"><div class="lab">Lab name</div><input type="text" id="hName" data-opt="hName" placeholder="e.g. Your Pathlab &amp; Diagnostics"></div>
+    <div class="field"><div class="lab">Address &amp; contact <span>one line per row</span></div><textarea id="hAddr" data-opt="hAddr" rows="3" placeholder="Shop 4, Example Plaza, LBS Marg, Ghatkopar (W), Mumbai 400086&#10;Ph: 022 0000 0000 · reports@yourlab.in"></textarea></div>
+    <div class="row"><label>Lines start</label><div class="seg" data-seg="tJustify"><button value="left" aria-pressed="true">Same point</button><button value="right" aria-pressed="false">End same point</button><button value="center" aria-pressed="false">Centred</button></div></div>
+    <div class="row"><label>Address position</label><div class="seg lockable" data-seg="tAlign"><button value="left" aria-pressed="false">Left</button><button value="center" aria-pressed="false">Centre</button><button value="right" aria-pressed="true">Right</button></div></div>
+    <div class="field"><div class="lab">Address text size <b id="v-tSize"></b></div><input type="range" class="lockable" id="tSize" data-opt="tSize" min="0.6" max="1.8" step="0.05"></div>
+    <div class="row"><label>Logo</label><div class="seg lockable" data-seg="pos"><button value="left" aria-pressed="true">Left</button><button value="center" aria-pressed="false">Centre</button><button value="right" aria-pressed="false">Right</button></div>
+      <span class="hint" id="customNote" hidden>Moved by hand · <a href="#" id="resetPos" style="color:var(--accent)">reset positions</a></span></div>
+    <div class="field"><div class="lab">Logo size <b id="v-size"></b></div><input type="range" class="lockable" id="size" data-opt="size" min="0.08" max="0.5" step="0.005"></div>
+    <div class="field"><div class="lab">Header height <b id="v-headerH"></b></div><input type="range" class="lockable" id="headerH" data-opt="headerH" min="0.05" max="0.25" step="0.0025"></div>
+    <div class="checks">
+      <label><input type="checkbox" id="removeBg" data-opt="removeBg">Remove white behind logo</label>
+      <label><input type="checkbox" id="clearHeader" data-opt="clearHeader">Blank out header area</label>
+    </div>
+    <p class="hint">Drag the logo or the address on the page to place them. Tick “Blank out header area” to hide the report's own printed header.</p>
+  </section>
+
+  <section class="step">
+    <h2><span class="n">04</span>Premium finish</h2>
+    <div class="row"><label>Style</label>
+      <div class="seg" data-seg="style"><button value="band" aria-pressed="true">Band</button><button value="wave" aria-pressed="false">Wave</button><button value="minimal" aria-pressed="false">Minimal</button></div></div>
+    <div class="checks">
+      <label><input type="checkbox" id="tintShading" data-opt="tintShading">Grey shading → brand tint</label>
+      <label><input type="checkbox" id="inkText" data-opt="inkText">Black text → brand ink</label>
+      <label><input type="checkbox" id="footer" data-opt="footer">Footer accent</label>
+      <label><input type="checkbox" id="watermark" data-opt="watermark">Logo watermark</label>
+      <label><input type="checkbox" id="frame" data-opt="frame">Page frame</label>
+      <label><input type="checkbox" id="sideBar" data-opt="sideBar">Side bar</label>
+    </div>
+    <div class="field"><div class="lab">Watermark strength <b id="v-wmOpacity"></b></div><input type="range" id="wmOpacity" data-opt="wmOpacity" min="0.02" max="0.15" step="0.005"></div>
+    <div class="field"><div class="lab">Footer line</div><input type="text" id="footerText" data-opt="footerText" placeholder="e.g. NABL accredited · www.yourlab.in · Home collection 1800 000 000"></div>
+    <div class="row"><label>Logo &amp; header on</label>
+      <div class="seg" data-seg="applyTo"><button value="all" aria-pressed="true">All pages</button><button value="first" aria-pressed="false">First page</button></div></div>
+  </section>
+</aside>
+
+<main class="stage">
+  <div class="stagebar">
+    <span class="status" id="status">Showing sample files</span>
+    <label class="saveas" for="fileName"><span>Saves as</span><input type="text" id="fileName" spellcheck="false"><span>.pdf</span></label>
+    <button id="guides" aria-pressed="true">Guides on</button>
+    <button id="compare" aria-pressed="false">Show original</button>
+  </div>
+  <div class="paper"><canvas id="view" width="10" height="14" aria-label="Branded report preview"></canvas><div class="busy" id="busy" hidden>Reading report…</div></div>
+  <div class="pages" id="pages" hidden></div>
+</main>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const o = {size:0.24, headerH:0.115, pos:'left', custom:null, removeBg:true, clearHeader:false, style:'band',
+  tintShading:true, inkText:false, footer:true, watermark:true, frame:false, sideBar:false, wmOpacity:0.05,
+  footerText:'', applyTo:'all', pickFor:'primary', hName:'', hAddr:'', tAlign:'right', tJustify:'left', tSize:1, tCustom:null, locked:false};
+const S = {pages:[], cur:0, logoRaw:null, logo:null, primary:'#b0124f', secondary:'#1f2f7a', palette:[], reportName:'sample-report', guides:true, original:false};
+
+/* ---------- colour helpers ---------- */
+const hex2rgb = h => [1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+const rgb2hex = (r,g,b) => '#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
+function rgb2hsl(r,g,b){r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b);let h=0,s=0,l=(mx+mn)/2;
+  if(mx!==mn){const d=mx-mn;s=l>.5?d/(2-mx-mn):d/(mx+mn);h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4;h*=60}return [h,s*100,l*100]}
+function hsl2rgb(h,s,l){s/=100;l/=100;const k=n=>(n+h/30)%12,a=s*Math.min(l,1-l),f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));return [f(0)*255,f(8)*255,f(4)*255]}
+const shade = (hex,L) => {const [h,s]=rgb2hsl(...hex2rgb(hex));return rgb2hex(...hsl2rgb(h,s,L))};
+
+/* ---------- palette extraction ---------- */
+function extractPalette(cv){
+  const sc=Math.min(1,120/Math.max(cv.width,cv.height)), w=Math.max(1,Math.round(cv.width*sc)), h=Math.max(1,Math.round(cv.height*sc));
+  const t=document.createElement('canvas');t.width=w;t.height=h;const x=t.getContext('2d');x.drawImage(cv,0,0,w,h);
+  const d=x.getImageData(0,0,w,h).data, B=new Map();
+  for(let i=0;i<d.length;i+=4){const r=d[i],g=d[i+1],b=d[i+2],a=d[i+3];if(a<140)continue;if(Math.min(r,g,b)>232)continue;
+    const k=(r>>4)<<8|(g>>4)<<4|(b>>4);let e=B.get(k);if(!e){e={r:0,g:0,b:0,n:0};B.set(k,e)}e.r+=r;e.g+=g;e.b+=b;e.n++}
+  const list=[...B.values()].map(e=>{const r=e.r/e.n,g=e.g/e.n,b=e.b/e.n;const [hh,ss,ll]=rgb2hsl(r,g,b);
+    return {hex:rgb2hex(r,g,b),h:hh,s:ss,l:ll,score:e.n*(0.25+ss/100)*(ll>92?0.1:1)}}).sort((a,b)=>b.score-a.score);
+  const out=[];for(const c of list){if(out.every(p=>{const dh=Math.min(Math.abs(p.h-c.h),360-Math.abs(p.h-c.h));return dh>18||Math.abs(p.l-c.l)>18||Math.abs(p.s-c.s)>30}))out.push(c);if(out.length>=6)break}
+  return out;
+}
+function chooseColours(pal){
+  if(!pal.length){S.primary='#2f3c96';S.secondary='#7a86d6';return}
+  let p=pal[0]; let s=pal.slice(1).find(c=>{const dh=Math.min(Math.abs(p.h-c.h),360-Math.abs(p.h-c.h));return (dh>25&&c.s>15)||Math.abs(p.l-c.l)>25});
+  S.primary = p.l>70 ? shade(p.hex,45) : p.hex;
+  if(s) S.secondary = s.l>80 ? shade(s.hex,60) : s.hex;
+  else { const [h,sa,l]=[p.h,p.s,p.l]; S.secondary=rgb2hex(...hsl2rgb((h+28)%360,Math.max(40,sa),Math.min(62,l+16))); }
+}
+
+/* ---------- logo processing ---------- */
+function processLogo(){
+  const raw=S.logoRaw;if(!raw)return;
+  const c=document.createElement('canvas');c.width=raw.width;c.height=raw.height;const x=c.getContext('2d');x.drawImage(raw,0,0);
+  const id=x.getImageData(0,0,c.width,c.height),d=id.data;
+  if(o.removeBg){let hasAlpha=false;for(let i=3;i<d.length;i+=16)if(d[i]<250){hasAlpha=true;break}
+    if(!hasAlpha)for(let i=0;i<d.length;i+=4){const m=Math.min(d[i],d[i+1],d[i+2]);if(m>225){d[i+3]=Math.round(Math.max(0,Math.min(255,(255-m)*8.5)))}}}
+  x.putImageData(id,0,0);
+  // trim transparent margins
+  let x0=c.width,y0=c.height,x1=0,y1=0;for(let y=0;y<c.height;y++)for(let xx=0;xx<c.width;xx++){if(d[(y*c.width+xx)*4+3]>16){if(xx<x0)x0=xx;if(xx>x1)x1=xx;if(y<y0)y0=y;if(y>y1)y1=y}}
+  if(x1<=x0||y1<=y0){S.logo={cv:c,w:c.width,h:c.height};return}
+  const t=document.createElement('canvas');t.width=x1-x0+1;t.height=y1-y0+1;t.getContext('2d').drawImage(c,-x0,-y0);
+  S.logo={cv:t,w:t.width,h:t.height};
+}
+function loadImageToCanvas(src,maxW){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>{let w=im.naturalWidth||800,h=im.naturalHeight||400;
+  if(!im.naturalWidth){w=900;h=450} const sc=Math.min(1,maxW/w);if(/svg/.test(src.slice(0,40))||!im.naturalWidth){}
+  const c=document.createElement('canvas');c.width=Math.round(w*sc);c.height=Math.round(h*sc);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c)};im.onerror=()=>rej(new Error('img'));im.src=src})}
+
+/* ---------- rendering ---------- */
+function baseFor(pg){
+  const key=[o.tintShading,o.inkText,S.primary].join('|');
+  if(pg.baseKey===key)return pg.base;
+  const W=pg.src.width,H=pg.src.height,c=pg.base||document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+  x.drawImage(pg.src,0,0);
+  if(o.tintShading||o.inkText){
+    const id=x.getImageData(0,0,W,H),d=id.data,n=W*H;const [pr,pg2,pb]=hex2rgb(S.primary);const [ir,ig,ib]=hex2rgb(shade(S.primary,20));
+    let band=null;
+    if(o.tintShading){band=new Uint8Array(n);for(let i=0,j=0;i<n;i++,j+=4){const r=d[j],g=d[j+1],b=d[j+2];const mx=Math.max(r,g,b),mn=Math.min(r,g,b);const L=.299*r+.587*g+.114*b;if(mx-mn<20&&L>=150&&L<=247)band[i]=1}}
+    for(let y=0;y<H;y++)for(let xx=0;xx<W;xx++){const i=y*W+xx,j=i*4;const r=d[j],g=d[j+1],b=d[j+2];const L=.299*r+.587*g+.114*b;
+      if(band&&band[i]&&xx>1&&xx<W-2&&y>1&&y<H-2&&band[i-2]&&band[i+2]&&band[i-2*W]&&band[i+2*W]){
+        const f=Math.min(1,(255-L)/255*1.7);d[j]=255-(255-pr)*f;d[j+1]=255-(255-pg2)*f;d[j+2]=255-(255-pb)*f;continue}
+      if(o.inkText&&L<125&&Math.max(r,g,b)-Math.min(r,g,b)<50){const t=(125-L)/125;d[j]=r+(ir-r)*t;d[j+1]=g+(ig-g)*t;d[j+2]=b+(ib-b)*t}}
+    x.putImageData(id,0,0);
+  }
+  pg.base=c;pg.baseKey=key;return c;
+}
+function stripH(H){return o.style==='band'?H*0.012:o.style==='wave'?H*0.03:0}
+function logoRect(W,H){
+  const L=S.logo;if(!L)return null;const ar=L.h/L.w;let w=o.size*W,h=w*ar;const maxH=o.headerH*H*0.74;if(h>maxH){h=maxH;w=h/ar}
+  if(o.custom)return {x:o.custom.x*W,y:o.custom.y*H,w,h};
+  const s=stripH(H),y=s+(o.headerH*H-s-h)/2,m=W*0.06;
+  const x=o.pos==='left'?m:o.pos==='right'?W-m-w:(W-w)/2;return {x,y,w,h};
+}
+function textBlock(x,W,H){
+  const clean=t=>t.replace(/\t/g,'    ').replace(/\s+$/,'');
+  const name=clean(o.hName||'').trim(),rows=(o.hAddr||'').replace(/\r/g,'').split('\n').map(clean);
+  while(rows.length&&!rows[rows.length-1])rows.pop();while(rows.length&&!rows[0])rows.shift();
+  if(!name&&!rows.length)return null;
+  const m=W*0.06,align=o.tAlign,ax=(o.tCustom&&o.tCustom.ax!=null)?o.tCustom.ax*W:(align==='left'?m:align==='right'?W-m:W/2);
+  // room available: stop before the logo if it sits on the same band
+  const lr=(o.applyTo==='all'||true)?logoRect(W,H):null,gap=W*0.03;let lo=m,hi=W-m;
+  if(lr){if(lr.x+lr.w/2<ax)lo=Math.max(lo,lr.x+lr.w+gap);else hi=Math.min(hi,lr.x-gap)}
+  const maxW=Math.max(W*0.25,align==='left'?hi-ax:align==='right'?ax-lo:2*Math.min(ax-lo,hi-ax));
+  const wrap=(t,font)=>{x.font=font;if(!t||x.measureText(t).width<=maxW)return [t];const out=[];let cur='';t.split(/(\s+)/).forEach(tok=>{const tr=cur+tok;if(cur&&x.measureText(tr.trimEnd()).width>maxW){out.push(cur.trimEnd());cur=tok.trimStart()}else cur=tr});if(cur.trim())out.push(cur.trimEnd());return out};
+  const k=o.tSize,nf=Math.round(H*0.0175*k),lf=Math.round(H*0.0108*k),lines=[];let y=0,w=0;
+  if(name){const f=`700 ${nf}px Figtree, Arial, sans-serif`;wrap(name,f).forEach(t=>{x.font=f;w=Math.max(w,x.measureText(t).width);lines.push({t,font:f,color:S.primary,dy:y});y+=nf*1.3})}
+  const f2=`500 ${lf}px Figtree, Arial, sans-serif`;rows.forEach(r=>{if(!r){y+=lf*0.8;return}wrap(r,f2).forEach(t=>{x.font=f2;w=Math.max(w,x.measureText(t).width);lines.push({t,font:f2,color:'#3b3f48',dy:y});y+=lf*1.45})});
+  const h=y,s=stripH(H);let bx,by;
+  by=o.tCustom?o.tCustom.y*H:s+(o.headerH*H-s-h)/2;
+  bx=align==='left'?ax:align==='right'?ax-w:ax-w/2;
+  lines.forEach(l=>l.y=by+l.dy);return {x:bx,y:by,w,h,align,lines};
+}
+function grad(x,x0,y0,x1,y1){const g=x.createLinearGradient(x0,y0,x1,y1);g.addColorStop(0,S.primary);g.addColorStop(1,S.secondary);return g}
+function wavePath(x,W,y0,amp){x.beginPath();x.moveTo(0,0);x.lineTo(W,0);x.lineTo(W,y0-amp*.4);x.bezierCurveTo(W*.68,y0+amp*1.6,W*.36,y0-amp*1.4,0,y0+amp*.8);x.closePath()}
+function decorate(x,W,H,first,preview){
+  const head = o.applyTo==='all'||first;
+  const hh=o.headerH*H,m=W*0.06;
+  if(head&&o.clearHeader){x.fillStyle='#fff';x.fillRect(0,0,W,hh)}
+  if(o.watermark&&S.logo){const ww=W*0.5,wh=ww*S.logo.h/S.logo.w;x.save();x.globalAlpha=o.wmOpacity;x.globalCompositeOperation='multiply';x.drawImage(S.logo.cv,(W-ww)/2,(H-wh)/2,ww,wh);x.restore()}
+  if(head){
+    if(o.style==='band'){x.fillStyle=grad(x,0,0,W,0);x.fillRect(0,0,W,stripH(H));
+      x.fillStyle=grad(x,m,0,W-m,0);x.fillRect(m,hh-H*0.0016,W-2*m,H*0.0032);
+      x.globalAlpha=.35;x.fillStyle=S.secondary;x.fillRect(m,hh+H*0.0032,W-2*m,H*0.0008);x.globalAlpha=1}
+    else if(o.style==='wave'){x.save();x.globalAlpha=.45;x.fillStyle=S.secondary;wavePath(x,W,H*0.036,H*0.008);x.fill();x.restore();
+      x.fillStyle=grad(x,0,0,W,0);wavePath(x,W,H*0.024,H*0.007);x.fill();
+      x.globalAlpha=.55;x.fillStyle=S.primary;x.fillRect(m,hh,W-2*m,H*0.0012);x.globalAlpha=1}
+    else {x.fillStyle=S.primary;x.fillRect(m,hh-H*0.002,(W-2*m)*0.28,H*0.003);x.fillStyle=S.secondary;x.globalAlpha=.6;x.fillRect(m+(W-2*m)*0.28,hh-H*0.0009,(W-2*m)*0.72,H*0.0009);x.globalAlpha=1}
+    const r=logoRect(W,H);if(r)x.drawImage(S.logo.cv,r.x,r.y,r.w,r.h);
+    const tb=textBlock(x,W,H);if(tb){x.textBaseline='top';tb.lines.forEach(l=>{x.font=l.font;x.fillStyle=l.color;const j=o.tJustify||'left';x.textAlign=j;x.fillText(l.t,j==='left'?tb.x:j==='right'?tb.x+tb.w:tb.x+tb.w/2,l.y)})}
+  }
+  let fH=0;
+  if(o.footer){
+    if(o.style==='band'){fH=H*0.012;x.fillStyle=grad(x,W,0,0,0);x.fillRect(0,H-fH,W,fH)}
+    else if(o.style==='wave'){fH=H*0.03;x.save();x.translate(W,H);x.scale(-1,-1);x.globalAlpha=.45;x.fillStyle=S.secondary;wavePath(x,W,H*0.03,H*0.007);x.fill();x.globalAlpha=1;x.fillStyle=grad(x,0,0,W,0);wavePath(x,W,H*0.019,H*0.006);x.fill();x.restore()}
+    else {fH=H*0.03;x.fillStyle=S.primary;x.fillRect(m,H-fH,W-2*m,H*0.0012)}
+  }
+  if(o.footerText.trim()){const fs=Math.round(H*0.0105);x.font=`500 ${fs}px Figtree, Arial, sans-serif`;x.textAlign='center';x.textBaseline='bottom';x.fillStyle=shade(S.primary,24);x.fillText(o.footerText.trim(),W/2,H-Math.max(fH,H*0.01)-H*0.008)}
+  if(o.sideBar){const top=head?hh+H*0.01:H*0.03;x.fillStyle=grad(x,0,top,0,H-fH);x.fillRect(0,top,W*0.007,H-fH-top-H*0.01)}
+  if(o.frame){x.save();x.strokeStyle=S.primary;x.globalAlpha=.55;x.lineWidth=Math.max(1,W*0.0015);const i=W*0.022;x.strokeRect(i,i,W-2*i,H-2*i);x.restore()}
+  if(preview&&S.guides&&!o.locked&&head){x.save();x.setLineDash([W*0.008,W*0.006]);x.lineWidth=Math.max(1,W*0.0012);x.strokeStyle='rgba(47,60,150,.8)';
+    x.beginPath();x.moveTo(0,hh);x.lineTo(W,hh);x.stroke();const r=logoRect(W,H);if(r)x.strokeRect(r.x-4,r.y-4,r.w+8,r.h+8);const tb=textBlock(x,W,H);if(tb)x.strokeRect(tb.x-6,tb.y-6,tb.w+12,tb.h+12);
+    x.setLineDash([]);x.font=`600 ${Math.round(W*0.011)}px Figtree, Arial`;x.fillStyle='rgba(47,60,150,.9)';x.textAlign='right';x.textBaseline='top';x.fillText('header ends · drag logo or address',W-W*0.012,hh+W*0.006);x.restore()}
+}
+function renderPage(i,target,preview){
+  const pg=S.pages[i];const W=pg.src.width,H=pg.src.height;target.width=W;target.height=H;const x=target.getContext('2d');
+  if(preview&&S.original){x.drawImage(pg.src,0,0);return}
+  x.drawImage(baseFor(pg),0,0);decorate(x,W,H,i===0,preview);
+}
+let raf=0;function draw(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{if(S.pages.length)renderPage(S.cur,$('view'),true)});scheduleSave()}
+
+/* ---------- saved settings (this browser) ---------- */
+const KEY='letterhead-studio.v1';let saveT=0,booted=false;
+function scheduleSave(){if(!booted)return;clearTimeout(saveT);saveT=setTimeout(saveSettings,300)}
+function saveSettings(){try{const keep={...o};localStorage.setItem(KEY,JSON.stringify({o:keep,primary:S.primary,secondary:S.secondary,palette:S.palette}))}catch(e){}}
+function saveLogo(name){try{localStorage.setItem(KEY+'.logo',JSON.stringify({data:S.logoRaw.toDataURL('image/png'),name}))}catch(e){toast('The logo is too large to remember. It works for now but will need re-uploading next time.')}}
+function readSaved(){try{return {s:JSON.parse(localStorage.getItem(KEY)||'null'),l:JSON.parse(localStorage.getItem(KEY+'.logo')||'null')}}catch(e){return {s:null,l:null}}}
+
+/* ---------- sample content ---------- */
+function sampleReport(){
+  const W=1240,H=1754,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+  x.fillStyle='#fff';x.fillRect(0,0,W,H);x.fillStyle='#111';x.textBaseline='alphabetic';
+  x.textAlign='right';x.font='bold 30px Arial';x.fillText('SAMPLE PATHOLOGY LABORATORY',1160,92);
+  x.font='17px Arial';x.fillStyle='#444';x.fillText('Shop 4, Example Plaza, LBS Marg, Mumbai 400086',1160,122);x.fillText('Ph: 022 0000 0000  ·  reports@samplelab.in',1160,147);
+  x.fillStyle='#ebebeb';x.fillRect(80,232,1080,150);x.strokeStyle='#bdbdbd';x.lineWidth=1.5;x.strokeRect(80,232,1080,150);
+  x.textAlign='left';const kv=[['Patient Name','Sample Patient','Sample ID','SPL-26-104387'],['Age / Sex','42 Y / Male','Collected','24-Oct-2026 08:15'],['Referred By','Dr. Sample Physician','Reported','24-Oct-2026 13:40'],['Centre','Ghatkopar (W)','Status','Final']];
+  kv.forEach((r,k)=>{const y=270+k*32;x.font='bold 17px Arial';x.fillStyle='#222';x.fillText(r[0],105,y);x.fillText(r[2],640,y);x.font='17px Arial';x.fillText(': '+r[1],270,y);x.fillText(': '+r[3],790,y)});
+  x.textAlign='center';x.font='bold 26px Arial';x.fillStyle='#111';x.fillText('HAEMATOLOGY',W/2,448);x.font='bold 20px Arial';x.fillText('COMPLETE BLOOD COUNT (CBC)',W/2,480);
+  const cols=[100,560,760,900];x.fillStyle='#d6d6d6';x.fillRect(80,505,1080,46);x.font='bold 17px Arial';x.fillStyle='#111';x.textAlign='left';
+  ['Test Description','Result','Unit','Biological Ref. Range'].forEach((t,k)=>x.fillText(t,cols[k],535));
+  const rows=[['Haemoglobin','13.8','g/dL','13.0 – 17.0'],['RBC Count','4.82','mill/cmm','4.5 – 5.5'],['PCV (Haematocrit)','42.1','%','40 – 50'],['MCV','87.3','fL','83 – 101'],['MCH','28.6','pg','27 – 32'],['MCHC','32.8','g/dL','31.5 – 34.5'],['RDW-CV','13.1','%','11.6 – 14.0'],['Total WBC Count','7,840','/cmm','4,000 – 10,000'],['Neutrophils','62','%','40 – 80'],['Lymphocytes','29','%','20 – 40'],['Eosinophils','3','%','1 – 6'],['Monocytes','5','%','2 – 10'],['Basophils','1','%','0 – 2'],['Platelet Count','2.45','lakh/cmm','1.5 – 4.1']];
+  rows.forEach((r,k)=>{const y=551+k*44;if(k%2){x.fillStyle='#f3f3f3';x.fillRect(80,y,1080,44)}x.fillStyle='#111';x.font='17px Arial';r.forEach((t,j)=>{x.font=j===1?'bold 17px Arial':'17px Arial';x.fillText(t,cols[j],y+29)})});
+  x.strokeStyle='#bdbdbd';x.strokeRect(80,505,1080,46+rows.length*44);
+  x.font='bold 16px Arial';x.fillText('Method:',100,1225);x.font='16px Arial';x.fillText('Automated cell counter (impedance + flow cytometry); differential verified by smear.',172,1225);
+  x.fillText('Kindly correlate clinically. Values outside the reference range are reviewed by the pathologist.',100,1252);
+  x.textAlign='center';x.font='15px Arial';x.fillStyle='#555';x.fillText('— End of Report —',W/2,1330);
+  x.textAlign='left';x.fillStyle='#111';x.font='bold 17px Arial';x.fillText('Dr. A. Sample, MD (Path)',840,1530);x.font='16px Arial';x.fillText('Consultant Pathologist',840,1556);
+  x.fillText('Lab Technician',120,1556);x.strokeStyle='#888';x.beginPath();x.moveTo(840,1500);x.lineTo(1100,1500);x.moveTo(120,1526);x.lineTo(330,1526);x.stroke();
+  return c;
+}
+function sampleLogo(){
+  const c=document.createElement('canvas');c.width=640;c.height=200;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,640,200);
+  x.fillStyle='#1f2f7a';x.beginPath();x.arc(92,100,70,0,Math.PI*2);x.fill();x.fillStyle='#b0124f';x.beginPath();x.arc(132,100,58,0,Math.PI*2);x.fill();
+  x.fillStyle='#fff';x.fillRect(118,72,28,56);x.fillRect(104,86,56,28);
+  x.fillStyle='#1f2f7a';x.font='bold 64px Arial';x.textBaseline='alphabetic';x.fillText('SAMPLE',214,106);
+  x.fillStyle='#b0124f';x.font='bold 27px Arial';x.fillText('D I A G N O S T I C S',216,146);
+  return c;
+}
+
+/* ---------- loading ---------- */
+function setPagesFromCanvases(list){S.pages=list.map(c=>({src:c,ptW:c.ptW||595.28,ptH:c.ptH||595.28*c.height/c.width}));S.cur=0;buildThumbs();draw()}
+function buildThumbs(){
+  const box=$('pages');box.innerHTML='';box.hidden=S.pages.length<2;
+  const tr=$('thumbReport');tr.innerHTML='';const t=document.createElement('canvas');t.width=60;t.height=Math.round(60*S.pages[0].src.height/S.pages[0].src.width);t.getContext('2d').drawImage(S.pages[0].src,0,0,t.width,t.height);tr.append(t);
+  if(S.pages.length<2)return;
+  S.pages.forEach((p,i)=>{const b=document.createElement('button');b.setAttribute('aria-current',i===S.cur);b.setAttribute('aria-label','Page '+(i+1));
+    const c=document.createElement('canvas');c.width=54;c.height=Math.round(54*p.src.height/p.src.width);c.getContext('2d').drawImage(p.src,0,0,c.width,c.height);
+    const s=document.createElement('span');s.textContent=i+1;b.append(c,s);b.onclick=()=>{S.cur=i;[...box.children].forEach((e,k)=>e.setAttribute('aria-current',k===i));draw()};box.append(b)});
+}
+async function loadReport(file){
+  $('busy').hidden=false;
+  try{
+    S.reportName=file.name.replace(/\.[^.]+$/,'');S.patient='';
+    if(file.type==='application/pdf'||/\.pdf$/i.test(file.name)){
+      if(!window.pdfjsLib)throw new Error('The PDF reader could not load. Try an image of the report instead.');
+      const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;const out=[];const N=Math.min(pdf.numPages,40);
+      try{S.patient=await findPatient(await pdf.getPage(1))}catch(e){S.patient=''}
+      for(let i=1;i<=N;i++){$('busy').textContent=`Reading page ${i} of ${N}…`;const pg=await pdf.getPage(i);const v1=pg.getViewport({scale:1});const sc=1700/v1.width;const v=pg.getViewport({scale:sc});
+        const c=document.createElement('canvas');c.width=Math.round(v.width);c.height=Math.round(v.height);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);
+        await pg.render({canvasContext:x,viewport:v}).promise;c.ptW=v1.width;c.ptH=v1.height;out.push(c)}
+      setPagesFromCanvases(out);
+    } else {
+      const url=URL.createObjectURL(file);const c=await loadImageToCanvas(url,2480);URL.revokeObjectURL(url);
+      const w=document.createElement('canvas');w.width=c.width;w.height=c.height;const x=w.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w.width,w.height);x.drawImage(c,0,0);setPagesFromCanvases([w]);
+    }
+    $('nameReport').textContent=file.name;setFileName();status();if(S.patient)toast('Patient found: '+S.patient);
+  }catch(e){toast(e.message&&e.message.length<120?e.message:'That file could not be read. Use a PDF, PNG or JPG.')}
+  finally{$('busy').hidden=true;$('busy').textContent='Reading report…'}
+}
+async function loadLogo(file){
+  try{const url=URL.createObjectURL(file);const c=await loadImageToCanvas(url,1200);URL.revokeObjectURL(url);
+    S.logoRaw=c;afterLogo();$('nameLogo').textContent=file.name;saveLogo(file.name);status()}
+  catch(e){toast('That logo could not be read. Use PNG, JPG or SVG.')}
+}
+function afterLogo(keepColours){
+  processLogo();if(!keepColours){S.palette=extractPalette(S.logo.cv);chooseColours(S.palette);}
+  const tl=$('thumbLogo');tl.innerHTML='';const t=document.createElement('canvas');t.width=S.logo.w;t.height=S.logo.h;t.getContext('2d').drawImage(S.logo.cv,0,0);tl.append(t);
+  syncColours();draw();
+}
+function status(){const n=S.pages.length;const sample=$('nameReport').querySelector('.chip')||$('nameLogo').querySelector('.chip');
+  $('status').textContent=(sample?'Sample files · ':'')+(n>1?`Page ${S.cur+1} of ${n}`:'1 page')}
+
+/* ---------- UI sync ---------- */
+function syncColours(){
+  $('c1').value=S.primary;$('c2').value=S.secondary;$('h1').textContent=S.primary.toUpperCase();$('h2').textContent=S.secondary.toUpperCase();
+  const m=$('mark');m.style.setProperty('--b1',S.primary);m.style.setProperty('--b2',S.secondary);
+  const sw=$('swatches');sw.innerHTML='';
+  const set=new Set(S.palette.map(p=>p.hex));
+  [...set].forEach(hex=>{const b=document.createElement('button');b.className='sw';b.style.background=hex;b.title=hex.toUpperCase();b.setAttribute('aria-label','Use '+hex);
+    b.onclick=()=>{if(o.pickFor==='primary')S.primary=hex;else S.secondary=hex;syncColours();draw()};sw.append(b)});
+  if(!set.size){const p=document.createElement('span');p.className='hint';p.textContent='No colours found in the logo. Pick them below.';sw.append(p)}
+}
+function syncInputs(){
+  document.querySelectorAll('[data-opt]').forEach(el=>{const k=el.dataset.opt;if(el.type==='checkbox')el.checked=!!o[k];else el.value=o[k]});
+  document.querySelectorAll('[data-seg]').forEach(g=>{[...g.children].forEach(b=>b.setAttribute('aria-pressed',b.value===o[g.dataset.seg]&&!(g.dataset.seg==='pos'&&o.custom)))});
+  $('v-size').textContent=Math.round(o.size*100)+'% width';$('v-headerH').textContent=Math.round(o.headerH*1000)/10+'% of page';$('v-wmOpacity').textContent=Math.round(o.wmOpacity*100)+'%';
+  $('customNote').hidden=!(o.custom||o.tCustom)||o.locked;$('wmOpacity').disabled=!o.watermark;$('v-tSize').textContent=Math.round(o.tSize*100)+'%';
+  document.querySelectorAll('.lockable').forEach(el=>{if(el.classList.contains('seg'))[...el.children].forEach(b=>b.disabled=o.locked);else el.disabled=o.locked});
+  $('lockBox').classList.toggle('on',o.locked);$('lockBtn').textContent=o.locked?'Unlock':'Lock layout';
+  $('lockText').textContent=o.locked?'Layout locked and saved. Logo and address stay fixed.':'Arrange the logo and address, then lock the layout.';
+}
+$('lockBtn').onclick=()=>{o.locked=!o.locked;syncInputs();draw();saveSettings();toast(o.locked?'Layout locked and saved':'Layout unlocked. You can drag again.')};
+document.querySelectorAll('[data-opt]').forEach(el=>el.addEventListener('input',()=>{const k=el.dataset.opt;
+  o[k]=el.type==='checkbox'?el.checked:el.type==='range'?Number(el.value):el.value;
+  if(k==='removeBg'&&S.logoRaw){processLogo();}
+  syncInputs();draw()}));
+document.querySelectorAll('[data-seg]').forEach(g=>g.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;o[g.dataset.seg]=b.value;if(g.dataset.seg==='pos')o.custom=null;if(g.dataset.seg==='tAlign'&&o.tCustom)o.tCustom.ax=null;syncInputs();draw()}));
+$('resetPos').onclick=e=>{e.preventDefault();o.custom=null;o.tCustom=null;syncInputs();draw()};
+$('c1').addEventListener('input',e=>{S.primary=e.target.value;syncColours();draw()});
+$('c2').addEventListener('input',e=>{S.secondary=e.target.value;syncColours();draw()});
+$('swap').onclick=()=>{[S.primary,S.secondary]=[S.secondary,S.primary];syncColours();draw()};
+$('guides').onclick=()=>{S.guides=!S.guides;$('guides').setAttribute('aria-pressed',S.guides);$('guides').textContent=S.guides?'Guides on':'Guides off';draw()};
+$('compare').onclick=()=>{S.original=!S.original;$('compare').setAttribute('aria-pressed',S.original);$('compare').textContent=S.original?'Show branded':'Show original';draw()};
+
+function wireDrop(labelId,inputId,fn){const l=$(labelId),i=$(inputId);i.addEventListener('change',()=>{if(i.files[0])fn(i.files[0]);i.value=''});
+  ['dragenter','dragover'].forEach(t=>l.addEventListener(t,e=>{e.preventDefault();l.classList.add('over')}));
+  ['dragleave','drop'].forEach(t=>l.addEventListener(t,e=>{e.preventDefault();l.classList.remove('over')}));
+  l.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)fn(f)})}
+wireDrop('dropReport','fileReport',loadReport);wireDrop('dropLogo','fileLogo',loadLogo);
+
+/* ---------- drag logo on preview ---------- */
+const view=$('view');let drag=null;
+function pagePt(e){const r=view.getBoundingClientRect();return {x:(e.clientX-r.left)/r.width*view.width,y:(e.clientY-r.top)/r.height*view.height}}
+function hit(p){if(o.locked||S.original||!(o.applyTo==='all'||S.cur===0))return null;const W=view.width,H=view.height,pad=W*0.01,inR=r=>r&&p.x>r.x-pad&&p.x<r.x+r.w+pad&&p.y>r.y-pad&&p.y<r.y+r.h+pad;
+  const tb=textBlock(view.getContext('2d'),W,H);if(inR(tb))return {kind:'text',r:tb};const r=logoRect(W,H);if(inR(r))return {kind:'logo',r};return null}
+view.addEventListener('pointerdown',e=>{const p=pagePt(e),h=hit(p);if(!h)return;drag={kind:h.kind,dx:p.x-h.r.x,dy:p.y-h.r.y};view.setPointerCapture(e.pointerId);view.style.cursor='grabbing'});
+view.addEventListener('pointermove',e=>{const p=pagePt(e);if(!drag){view.style.cursor=hit(p)?'grab':'default';return}
+  const W=view.width,H=view.height,r=drag.kind==='logo'?logoRect(W,H):textBlock(view.getContext('2d'),W,H);if(!r)return;
+  const pos={x:Math.max(0,Math.min(W-r.w,p.x-drag.dx))/W,y:Math.max(0,Math.min(H-r.h,p.y-drag.dy))/H};
+  if(drag.kind==='logo')o.custom=pos;else{const m=W*0.06,lx=pos.x*W;let ax=o.tAlign==='left'?lx:o.tAlign==='right'?lx+r.w:lx+r.w/2;const home=o.tAlign==='left'?m:o.tAlign==='right'?W-m:W/2;if(Math.abs(ax-home)<W*0.025)ax=null;o.tCustom={y:pos.y,ax:ax==null?null:ax/W}}syncInputs();draw()});
+['pointerup','pointercancel'].forEach(t=>view.addEventListener(t,()=>{drag=null;view.style.cursor='default'}));
+
+/* ---------- export ---------- */
+function toast(msg){const t=$('toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,3600)}
+async function offer(filename,blob){
+  let d=null;try{d=window.claude&&window.claude.use?await window.claude.use('downloads'):null}catch(e){d=null}
+  if(d){try{await d.save({filename,data:blob});toast('Saved '+filename)}catch(e){toast(e&&e.code==='declined'?'Download cancelled':'Download is not available in this view')}return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+}
+const safe=t=>t.replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim();
+const outName=ext=>(safe($('fileName').value)||safe(S.reportName||'report')+' branded')+'.'+ext;
+function titleCase(t){return t.toLowerCase().replace(/(^|[\s.(-])([a-z])/g,(m,a,b)=>a+b.toUpperCase())}
+async function findPatient(page){
+  const tc=await page.getTextContent();const items=tc.items.filter(i=>i.str&&i.str.trim()).map(i=>({s:i.str,x:i.transform[4],y:i.transform[5],w:i.width||0,h:Math.abs(i.transform[3])||10}));
+  const rows=[];items.forEach(it=>{let r=rows.find(r=>Math.abs(r.y-it.y)<it.h*0.5);if(!r){r={y:it.y,items:[]};rows.push(r)}r.items.push(it)});
+  const stop=/^(age|gender|sex|collection|collected|receiving|received|reporting|reported|sample|patient\s*id|referr|ref\.?\s*by|registration|date|uhid|mobile)/i;
+  for(const r of rows){r.items.sort((a,b)=>a.x-b.x);let txt='',owner=[];r.items.forEach((it,k)=>{txt+=it.s+' ';for(let c=0;c<it.s.length+1;c++)owner.push(k)});
+    const m=/(patient'?s?\s*name|name\s*of\s*patient)\s*/i.exec(txt);if(!m)continue;
+    let k=owner[m.index+m[0].trimEnd().length-1],after=txt.slice(m.index+m[0].length);const labIt=r.items[k];
+    // text inside the same item after the label
+    const rest=labIt.s.slice(labIt.s.search(/name/i)+4);let parts=[rest],prevEnd=labIt.x+labIt.w;
+    for(let j=k+1;j<r.items.length;j++){const it=r.items[j];const got=parts.join(' ').replace(/[:\-\s]/g,'');if(got&&it.x-prevEnd>it.h*3)break;if(got&&stop.test(it.s.trim()))break;parts.push(it.s);prevEnd=it.x+it.w}
+    const name=parts.join(' ').replace(/^[\s:.\-]+/,'').replace(/\s{3,}.*$/,'').replace(/\s(age|gender|sex|collection|sample|ref\w*|patient\s*id|uhid)\b.*$/i,'').replace(/\s+/g,' ').trim();if(name.length>1)return titleCase(name);
+  }
+  return '';
+}
+function setFileName(){$('fileName').value=S.patient?S.patient+' Report':safe(S.reportName||'report')+' branded'}
+$('dlPdf').onclick=async()=>{const b=$('dlPdf');if(!window.jspdf){toast('The PDF writer could not load. Reload the page and try again.');return}b.disabled=true;const old=b.textContent;
+  try{const {jsPDF}=window.jspdf;let doc=null;const c=document.createElement('canvas');
+    for(let i=0;i<S.pages.length;i++){b.textContent=`Building page ${i+1}/${S.pages.length}…`;await new Promise(r=>setTimeout(r,10));
+      const pg=S.pages[i];const ori=pg.ptW>pg.ptH?'l':'p';if(!doc)doc=new jsPDF({unit:'pt',format:[pg.ptW,pg.ptH],orientation:ori,compress:true});else doc.addPage([pg.ptW,pg.ptH],ori);
+      renderPage(i,c,false);doc.addImage(c.toDataURL('image/jpeg',0.93),'JPEG',0,0,pg.ptW,pg.ptH,undefined,'FAST')}
+    await offer(outName('pdf'),doc.output('blob'))}
+  catch(e){toast('Could not build the PDF. Reload the page and try again.')}
+  finally{b.disabled=false;b.textContent=old}};
+
+/* ---------- boot ---------- */
+async function boot(){
+  const {s,l}=readSaved();
+  if(s&&s.o){if(s.o.tCustom&&s.o.tCustom.ax===undefined)s.o.tCustom={y:s.o.tCustom.y,ax:null};if(s.o.hAddr===undefined&&s.o.footerText){s.o.hAddr=s.o.footerText;s.o.footerText=''}Object.assign(o,s.o);}
+  let restored=false;
+  if(l&&l.data){try{S.logoRaw=await loadImageToCanvas(l.data,1200);restored=true;$('nameLogo').textContent=l.name||'Saved logo'}catch(e){}}
+  if(!restored)S.logoRaw=sampleLogo();
+  if(s&&s.primary){S.palette=s.palette||[];S.primary=s.primary;S.secondary=s.secondary;afterLogo(true)}else afterLogo(false);
+  setPagesFromCanvases([sampleReport()]);S.patient='Sample Patient';setFileName();syncInputs();status();booted=true;if(document.fonts)document.fonts.ready.then(draw);
+}
+$('resetAll').onclick=()=>{$('confirmReset').hidden=false};
+$('resetNo').onclick=()=>{$('confirmReset').hidden=true};
+$('resetYes').onclick=()=>{try{localStorage.removeItem(KEY);localStorage.removeItem(KEY+'.logo')}catch(e){}location.reload()};
+boot();
+})();
+</script>
